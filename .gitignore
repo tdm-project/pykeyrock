@@ -1,0 +1,4 @@
+build/
+dist/
+src/keyrock/version.py
+src/pykeyrock.egg-info/
