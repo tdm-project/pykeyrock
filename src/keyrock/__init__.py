@@ -14,7 +14,7 @@
 #  limitations under the License.
 
 """
-pykeyrock.
+.. module:: keyrock
 """
 
 from .idm import IDMManager, get_auth_token
