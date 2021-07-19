@@ -26,8 +26,6 @@ import uuid
 import unittest
 from lorem_text import lorem
 
-# from keyrock import IDMApplication
-# from keyrock import IDMProxy
 from keyrock import IDMManager, get_auth_token
 from requests.exceptions import HTTPError
 

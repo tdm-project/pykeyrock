@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .models import IDMOrganization
+from .models import IDMApplication, IDMOrganization
 import dateutil.parser
 import inspect
 import json
@@ -108,8 +108,8 @@ class IDMManager(object):
     ###########################################################################
     def get_organization(self, organization_id: str):
         """
-        Retrieves information about the organizations with the given id,
-        if exist.
+        Retrieves information about the organization with the given id,
+        if exists.
 
         Args:
             organization_id (str): The organization id.
@@ -248,4 +248,153 @@ class IDMManager(object):
             name, response.json()['organization'])
 
     def update_organization(self, organization_id: str):
+        raise NotImplementedError()
+
+    ###########################################################################
+    # APPLICATIONS section
+    ###########################################################################
+    def get_application(self, application_id: str):
+        """
+        Retrieves information about the application with the given id,
+        if exists.
+
+        Args:
+            application_id (str): The application id.
+
+            Returns:
+                - an IDMApplication object with the application details
+                - None if the application does not exist.
+        """
+        url = f"{self._idm_url}/v1/applications/{application_id}"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        if response.status_code == requests.codes.ok:
+            _application = IDMApplication(
+                app_dict=response.json()['application'])
+        else:
+            _application = None
+
+        return _application
+
+    def list_applications(self):
+        """
+        Returns a list of all the applications in the IDM.
+
+        Returns:
+            - a list of IDMApplication objects.
+        """
+        url = f"{self._idm_url}/v1/applications"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        _app_list = list()
+        if response.status_code == requests.codes.ok:
+            for _app in response.json()['applications']:
+                _app_list.append(
+                    IDMApplication(app_dict=_app))
+
+        return _app_list
+
+    def delete_application(self, application_id: str):
+        """
+        Deletes the application with the given id, if exist.
+        WARNING: it does not asks for confirmation!
+
+        Args:
+            application_id (str): The application id.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+        """
+        url = f"{self._idm_url}/v1/applications/{application_id}"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+
+        response.raise_for_status()
+
+    def get_applications_by_name(self, application_name: str):
+        """
+        Retrieves information about the applications with the given name, if
+        exist. More than one applications can exists with the same name.
+
+        Args:
+            application_name (str): The application name.
+
+            Returns:
+                - a list of IDMApplication objects.
+        """
+        apps = self.list_applications()
+        app_list = list()
+
+        for _app in apps:
+            if _app.name == application_name:
+                app_list.append(_app)
+
+        if len(app_list) > 1:
+            self._logger.warning(
+                'multiple applications with the name "%s" found',
+                application_name)
+
+        return app_list
+
+    def create_application(self, name, description: str = None):
+        """
+        Creates a new application.
+        Warning: more than one application can be created with the same!
+
+        Args:
+            name (str): The application's name.
+        #     description (str): The organization's description.
+
+            Returns:
+                - the IDMApplication object.
+        """
+        url = f"{self._idm_url}/v1/applications"
+
+        # XXX: Due to a bug (?) in Keyrock an empty-string description is
+        # refused with a 500 error code. None or a missing description key are
+        # accepted but disrupt the database.
+        payload = {
+            "application": {
+                "name": name,
+                "description":
+                    description or f"{name} application protected by Keyrock",
+                "redirect_uri": "http://localhost",
+                "url": "http://localhost",
+                "grant_type": [
+                    "authorization_code",
+                    "implicit",
+                    "password"
+                ],
+                "token_types": ["permanent"]
+            }
+        }
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload))
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info("IDM application \"%s\" created", name)
+        return IDMApplication(name, response.json()['application'])
+
+    def update_application(self, application_id: str):
         raise NotImplementedError()

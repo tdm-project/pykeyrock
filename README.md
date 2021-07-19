@@ -2,6 +2,7 @@
 
 ### Notes
 * ***update*** operation for *Organization* is not implemented.
+* ***update*** operation for *Application* is not implemented.
 
 ### Acknowledgements
 

@@ -51,7 +51,7 @@ jobs:
         pip install dist/*.whl
 
     - name: Start containers
-      run: docker-compose -f tests/docker-compose.yml up -d
+      run: docker-compose -f tests/docker-compose.yaml up -d
 
     - name: Install testing dependencies
       run: |
@@ -61,7 +61,7 @@ jobs:
       run: pytest tests/test_organization.py
 
     - name: Stop containers
-      run: docker-compose -f tests/docker-compose.yml down
+      run: docker-compose -f tests/docker-compose.yaml down
 
   deploy:
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}

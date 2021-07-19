@@ -85,7 +85,7 @@ class IDMApplication(object):
         self._app_dict = app_dict
         self._app_id = app_dict.get('id', None)
         self._app_secret = app_dict.get('secret', None)
-        self._app_desc = app_dict.get('description', None)
+        self._app_description = app_dict.get('description', None)
 
     @property
     def name(self):
@@ -117,7 +117,7 @@ class IDMApplication(object):
     def __repr__(self):
         return (f"<IDMApplication id: {self._app_id}, "
                 f"name: \"{self._app_name}\", "
-                f"description: \"{self._app_desc}\">")
+                f"description: \"{self._app_description}\">")
 
 
 class IDMProxy(object):
