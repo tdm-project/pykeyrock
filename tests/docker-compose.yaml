@@ -1,0 +1,30 @@
+version: '3.5'
+
+services:
+  mysql:
+    image: mysql:5.7
+    hostname: mysql
+    expose:
+      - "3306"
+    environment:
+      - "MYSQL_ROOT_PASSWORD=test-pass"
+  
+  keyrock:
+    image: fiware/idm:7.8.2
+    hostname: keyrock
+    depends_on:
+      - mysql
+    ports:
+      - "3005:3005"
+    environment:
+      - DEBUG=idm:*
+      - IDM_DB_HOST=mysql
+      - IDM_DB_PASS=test-pass
+      - IDM_DB_USER=root
+      - IDM_HOST=http://localhost:3005
+      - IDM_PORT=3005
+      - IDM_HTTPS_ENABLED=false
+      - IDM_HTTPS_PORT=3443
+      - IDM_ADMIN_USER=admin
+      - IDM_ADMIN_EMAIL=admin@test.com
+      - IDM_ADMIN_PASS=1234
