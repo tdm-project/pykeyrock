@@ -58,7 +58,10 @@ jobs:
         if [ -f tests/requirements-tests.txt ]; then pip install -r tests/requirements-tests.txt; fi
 
     - name: Run the tests
-      run: pytest tests/test_organization.py
+      run: |
+        sleep 10
+        curl http://localhost:3005
+        pytest tests/test_organization.py
 
     - name: Stop containers
       run: docker-compose -f tests/docker-compose.yaml down
