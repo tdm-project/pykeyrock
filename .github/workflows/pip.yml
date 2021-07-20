@@ -60,8 +60,7 @@ jobs:
     - name: Run the tests
       run: |
         sleep 30
-        curl http://localhost:3005
-        pytest tests/test_organization.py
+        pytest -v tests/
 
     - name: Stop containers
       run: docker-compose -f tests/docker-compose.yaml down
