@@ -59,7 +59,7 @@ jobs:
 
     - name: Run the tests
       run: |
-        sleep 10
+        sleep 30
         curl http://localhost:3005
         pytest tests/test_organization.py
 
