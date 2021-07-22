@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .models import IDMApplication, IDMOrganization
+from .models import IDMApplication, IDMOrganization, IDMProxy
 import dateutil.parser
 import inspect
 import json
@@ -357,10 +357,10 @@ class IDMManager(object):
 
         Args:
             name (str): The application's name.
-        #     description (str): The organization's description.
+            description (str): The organization's description.
 
-            Returns:
-                - the IDMApplication object.
+        Returns:
+            - the IDMApplication object.
         """
         url = f"{self._idm_url}/v1/applications"
 
@@ -398,3 +398,125 @@ class IDMManager(object):
 
     def update_application(self, application_id: str):
         raise NotImplementedError()
+
+    ###########################################################################
+    # APPLICATION's PROXY section
+    ###########################################################################
+    def get_proxy(self, application_id):
+        """
+        Retrieves information about the proxy, if any, of the
+        given application.
+
+        Args:
+            application_id (str): The application id.
+
+            Returns:
+                - the IDMProxy object, if exists;
+                - None if proxy is not set for the application.
+
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/pep-proxy/#pep-proxy-crud-actions
+        """
+        url = (
+            f"{self._idm_url}/v1/applications/"
+            f"{application_id}/pep_proxies")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        if response.status_code == requests.codes.ok:
+            _proxy = IDMProxy(proxy_dict=response.json()['pep_proxy'])
+        else:
+            _proxy = None
+
+        return _proxy
+
+    def create_proxy(self, application_id):
+        """
+        Creates a new proxy for the given application.
+
+        Args:
+            application_id (str): The application id.
+
+        Returns:
+            - the IDMApplication object.
+
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/pep-proxy/#pep-proxy-crud-actions
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}/pep_proxies")
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request("POST", url, headers=headers)
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info(
+            "IDM proxy \"%s\" created",
+            response.json()['pep_proxy']['id'])
+
+        return IDMProxy(proxy_dict=response.json()['pep_proxy'])
+
+    def delete_proxy(self, application_id: str):
+        """
+        Deletes the existing PEP Proxy Account for the given application.
+        WARNING: it does not asks for confirmation!
+
+        Args:
+            application_id (str): The application id.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/pep-proxy/#pep-proxy-crud-actions
+        """
+        url = f"{self._idm_url}/v1/applications/{application_id}/pep_proxies"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info(
+            "IDM proxy for application \"%s\" deleted",
+            application_id)
+
+    def reset_proxy(self, application_id: str):
+        """
+        Renews the password of the PEP Proxy Account for the given application.
+
+        Args:
+            application_id (str): The application id.
+
+        Returns:
+            - the IDMApplication object.
+
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/pep-proxy/#pep-proxy-crud-actions
+        """
+        _proxy = self.get_proxy(application_id)
+
+        url = f"{self._idm_url}/v1/applications/{application_id}/pep_proxies"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("PATCH", url, headers=headers)
+        response.raise_for_status()
+
+        self._logger.info(
+            "IDM password for PEP Proxy Account \"%s\" refreshed",
+            _proxy.id)
+
+        _proxy.update(response.json())
+
+        return _proxy

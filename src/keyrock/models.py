@@ -142,6 +142,19 @@ class IDMProxy(object):
         self._proxy_password = proxy_dict.get('password', None)
         self._proxy_oauth_client_id = proxy_dict.get('oauth_client_id', None)
 
+    def update(self, proxy_dict: dict):
+        """
+        Updates some of the proxy attributes.
+        Currently only the 'password' attribute can be updated (the key
+        'new_password' can be used as alias).
+        """
+        if 'password' in [*proxy_dict]:
+            self._proxy_password = proxy_dict['password']
+            self._proxy_dict.update({'password': proxy_dict['password']})
+        if 'new_password' in [*proxy_dict]:
+            self._proxy_password = proxy_dict['new_password']
+            self._proxy_dict.update({'password': proxy_dict['new_password']})
+
     @property
     def id(self):
         """Gets the id of the proxy."""
@@ -152,6 +165,14 @@ class IDMProxy(object):
         """Gets the password of the proxy (it is available only at the proxy
         creation)."""
         return self._proxy_password
+
+    @property
+    def oauth_client_id(self):
+        """
+        Gets the oauth client id of the proxy (it is available only after the
+        proxy creation).
+        """
+        return self._proxy_oauth_client_id
 
     @property
     def dict(self):
