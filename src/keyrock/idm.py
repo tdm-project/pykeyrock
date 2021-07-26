@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .models import IDMApplication, IDMOrganization, IDMProxy
+from .models import IDMApplication, IDMOrganization, IDMProxy, IDMUser
 import dateutil.parser
 import inspect
 import json
@@ -261,9 +261,9 @@ class IDMManager(object):
         Args:
             application_id (str): The application id.
 
-            Returns:
-                - an IDMApplication object with the application details
-                - None if the application does not exist.
+        Returns:
+            - an IDMApplication object with the application details
+            - None if the application does not exist.
         """
         url = f"{self._idm_url}/v1/applications/{application_id}"
         headers = {
@@ -520,3 +520,129 @@ class IDMManager(object):
         _proxy.update(response.json())
 
         return _proxy
+
+    ###########################################################################
+    # USERS section
+    ###########################################################################
+    def create_user(self, user_email: str, user_password: str,
+                    user_name: str = None):
+        """
+        Creates a new user in the IDM System.
+
+        Args:
+            user_email (str): mandatory, the user's email and the user's login;
+                              it must be unique;
+            user_password (str): mandatory, the password of the user to create;
+            user_name (str): the user's name;
+
+        Returns:
+            - the IDMUser object.
+
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/identity-management/#user-crud-actions
+        """
+        url = f"{self._idm_url}/v1/users"
+        payload = {
+            "user": {
+                "username": user_name,
+                "email": user_email,
+                "password": user_password
+            }
+        }
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload))
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info("IDM user \"%s\" created", user_email)
+
+        return IDMUser(user_dict=response.json()['user'])
+
+    def get_user(self, user_id: str):
+        """
+        Retrieves information about the user with the given id, if exists.
+
+        Args:
+            user_id (str): The user's id
+
+        Returns:
+            - an IDMUSer object with the user's details
+            - None if the user does not exist.
+
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/identity-management/#user-crud-actions
+        """
+        url = f"{self._idm_url}/v1/users/{user_id}"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        if response.status_code == requests.codes.ok:
+            _user = IDMUser(
+                user_dict=response.json()['user'])
+        else:
+            _user = None
+
+        return _user
+
+    def list_users(self):
+        """
+        Returns a list of all the users in the IDM.
+
+        Returns:
+            - a list of IDMUser objects.
+
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/identity-management/#user-crud-actions
+        """
+        url = f"{self._idm_url}/v1/users"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        _user_list = list()
+        if response.status_code == requests.codes.ok:
+            for _user in response.json()['users']:
+                _user_list.append(
+                    IDMUser(user_dict=_user))
+
+        return _user_list
+
+    def update_user(self, user_id: str):
+        raise NotImplementedError()
+
+    def delete_user(self, user_id: str):
+        """
+        Deletes the user with the given id, if exist.
+        WARNING: it does not asks for confirmation!
+
+        Args:
+            user_id (str): The user id.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://fiware-tutorials.readthedocs.io/en/stable/identity-management/#user-crud-actions
+        """
+        url = f"{self._idm_url}/v1/users/{user_id}"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+
+        response.raise_for_status()

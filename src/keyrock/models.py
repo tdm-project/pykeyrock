@@ -183,3 +183,73 @@ class IDMProxy(object):
     def __repr__(self):
         return (f"<IDMProxy id: {self._proxy_id}, oauth_client_id: "
                 f"{self._proxy_oauth_client_id}>")
+
+
+class IDMUser(object):
+    """
+    This class represent an user inside the Keyrock IDM.
+
+    Args:
+        user_email:
+            Mandatory if 'user_dict' argument is not provided or does not
+            contain the 'email' key. The email or login (in the form of an
+            email) of the user. It takes the precedence over 'user''s 'email'
+            key.
+        user_dict:
+            a dictionary used to initialize the instance with the result of an
+            IDM query. If 'user_email' argument is not provided, 'user_dict'
+            must be provided and have the 'email' key.
+
+    """
+    def __init__(self, user_email: str = None,
+                 user_dict: dict = None):
+        self._user_email = user_email or user_dict['email']
+        self._user_dict = user_dict
+        self._user_id = user_dict.get('id', None)
+        self._user_name = user_dict.get('username', None)
+        self._user_enabled = user_dict.get('enabled', False)
+        self._user_gravatar = user_dict.get('gravatar', None)
+        self._user_website = user_dict.get('website', None)
+        self._user_expiration = user_dict.get('date_password', None)
+        self._user_description = user_dict.get('description', None)
+
+    @property
+    def name(self):
+        """Gets the user's name."""
+        return self._user_name
+
+    @property
+    def id(self):
+        """Gets the user's id."""
+        return self._user_id
+
+    @property
+    def email(self):
+        """Gets the user's email."""
+        return self._user_email
+
+    @property
+    def login(self):
+        """
+        Gets the user's login i.e. the user's email. Actually is an alias of
+        the 'email' property.
+        """
+        return self._user_email
+
+    @property
+    def description(self):
+        """Gets the user's description."""
+        return self._user_description
+
+    @property
+    def dict(self):
+        """Gets the dictionary that is passed to the constructor (it can be used to
+        retrieve optional attributes returned by the IDM)."""
+        return self._user_dict
+
+    def __repr__(self):
+        return (f"<IDMUser id: {self._user_id}, "
+                f"email: \"{self._user_email}\", "
+                f"username: \"{self._user_name}\", "
+                f"enabled: \"{self._user_enabled}\", "
+                f"description: \"{self._user_description}\">")
