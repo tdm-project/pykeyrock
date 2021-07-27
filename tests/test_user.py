@@ -23,14 +23,11 @@ This module tests CRUD operations on Keyrock User Management:
 
 import uuid
 import unittest
-from lorem_text import lorem
+
+from utils import random_user_name, random_user_email, random_user_password
 
 from keyrock import IDMManager, get_auth_token
 from requests.exceptions import HTTPError
-
-
-KEYROCK_ORG = "Test Org"
-KEYROCK_APP = "Test App"
 
 
 class TestUser(unittest.TestCase):
@@ -49,25 +46,12 @@ class TestUser(unittest.TestCase):
         self._im = IDMManager(
             self.keyrock_host, self.keyrock_port, self.auth_token)
 
-    def random_app_name(self, prefix='pykeyrock unittest', words=2):
-        return f"{prefix} {lorem.words(words)}".capitalize()
-
-    def random_user_email(self, prefix='pykeyrock_unittest'):
-        _login, _domain, _tld = lorem.words(3).split()
-        return f"{prefix}_{_login}@{_domain}.{_tld[0:2]}".lower()
-
-    def random_user_password(self):
-        return '.'.join(lorem.words(3).split()).lower()
-
-    def random_user_name(self, prefix='pykeyrock', words=2):
-        return f"{prefix} {lorem.words(words)}".capitalize()
-
     def test_create_user(self):
         """
         """
-        _user_email = self.random_user_email()
-        _user_password = self.random_user_password()
-        _user_name = self.random_user_name()
+        _user_email = random_user_email()
+        _user_password = random_user_password()
+        _user_name = random_user_name()
         _new_user = self._im.create_user(_user_email, _user_password,
                                          _user_name)
         self.assertNotEqual(_new_user, None, "User not created")
@@ -81,9 +65,9 @@ class TestUser(unittest.TestCase):
     def test_get_user(self):
         """
         """
-        _user_email = self.random_user_email()
-        _user_password = self.random_user_password()
-        _user_name = self.random_user_name()
+        _user_email = random_user_email()
+        _user_password = random_user_password()
+        _user_name = random_user_name()
         _user = self._im.create_user(_user_email, _user_password,
                                      _user_name)
 
@@ -109,9 +93,9 @@ class TestUser(unittest.TestCase):
     def test_delete_user(self):
         """
         """
-        _user_email = self.random_user_email()
-        _user_password = self.random_user_password()
-        _user_name = self.random_user_name()
+        _user_email = random_user_email()
+        _user_password = random_user_password()
+        _user_name = random_user_name()
         _user = self._im.create_user(_user_email, _user_password,
                                      _user_name)
 

@@ -21,17 +21,13 @@ This module tests CRUD operations on Keyrock Application:
     *
 """
 
-# import logging
 import uuid
 import unittest
-from lorem_text import lorem
+
+from utils import random_org_name, random_org_description
 
 from keyrock import IDMManager, get_auth_token
 from requests.exceptions import HTTPError
-
-
-KEYROCK_ORG = "Test Org"
-KEYROCK_APP = "Test App"
 
 
 class TestOrganization(unittest.TestCase):
@@ -52,13 +48,10 @@ class TestOrganization(unittest.TestCase):
         self._im = IDMManager(
             self.keyrock_host, self.keyrock_port, self.auth_token)
 
-    def random_org_name(self, prefix='pykeyrock unittest', words=2):
-        return f"{prefix} {lorem.words(words)}".capitalize()
-
     def test_create_organization(self):
         """
         """
-        _org_name = self.random_org_name()
+        _org_name = random_org_name()
         self._im.create_organization(_org_name)
 
         _orgs = self._im.get_organizations_by_name(_org_name)
@@ -68,7 +61,7 @@ class TestOrganization(unittest.TestCase):
     def test_create_organization_empty_description(self):
         """
         """
-        _org_name = self.random_org_name()
+        _org_name = random_org_name()
         _org_desc = f"This is the {_org_name} organization"
         _org = self._im.create_organization(_org_name)
 
@@ -78,8 +71,8 @@ class TestOrganization(unittest.TestCase):
     def test_create_organization_with_description(self):
         """
         """
-        _org_name = self.random_org_name()
-        _description = lorem.words(5).capitalize() + '.'
+        _org_name = random_org_name()
+        _description = random_org_description()
 
         _org = self._im.create_organization(_org_name, _description)
 
@@ -90,7 +83,7 @@ class TestOrganization(unittest.TestCase):
         """
         """
         _org_ids = list()
-        _org_name = self.random_org_name()
+        _org_name = random_org_name()
 
         _org = self._im.create_organization(_org_name)
         _org_ids.append(_org.id)
@@ -104,8 +97,8 @@ class TestOrganization(unittest.TestCase):
     def test_get_organization(self):
         """
         """
-        _org_name = self.random_org_name()
-        _description = lorem.words(5).capitalize() + '.'
+        _org_name = random_org_name()
+        _description = random_org_description()
 
         _org = self._im.create_organization(_org_name, _description)
 
@@ -119,8 +112,8 @@ class TestOrganization(unittest.TestCase):
         self.assertEqual(_res, None, "Returns not None object")
 
     def test_delete_organization(self):
-        _org_name = self.random_org_name()
-        _description = lorem.words(5).capitalize() + '.'
+        _org_name = random_org_name()
+        _description = random_org_description()
         _org = self._im.create_organization(_org_name, _description)
 
         _res = self._im.get_organization(_org.id)

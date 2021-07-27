@@ -23,16 +23,14 @@ This module tests CRUD operations on Keyrock Application:
 
 import uuid
 import unittest
-from lorem_text import lorem
+
+from utils import random_app_name, random_app_description
 
 # from keyrock import IDMApplication
 # from keyrock import IDMProxy
 from keyrock import IDMManager, get_auth_token
+
 from requests.exceptions import HTTPError
-
-
-KEYROCK_ORG = "Test Org"
-KEYROCK_APP = "Test App"
 
 
 class TestApplication(unittest.TestCase):
@@ -51,17 +49,10 @@ class TestApplication(unittest.TestCase):
         self._im = IDMManager(
             self.keyrock_host, self.keyrock_port, self.auth_token)
 
-        _orgs = self._im.get_organizations_by_name(KEYROCK_ORG)
-        if not _orgs:
-            self._im.create_organization(KEYROCK_ORG)
-
-    def random_app_name(self, prefix='pykeyrock unittest', words=2):
-        return f"{prefix} {lorem.words(words)}".capitalize()
-
     def test_create_application(self):
         """
         """
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         self._im.create_application(_app_name)
 
         _apps = self._im.get_applications_by_name(_app_name)
@@ -71,7 +62,7 @@ class TestApplication(unittest.TestCase):
     def test_create_application_empty_description(self):
         """
         """
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         _app_desc = f"{_app_name} application protected by Keyrock"
         _app = self._im.create_application(_app_name)
 
@@ -81,8 +72,8 @@ class TestApplication(unittest.TestCase):
     def test_create_application_with_description(self):
         """
         """
-        _app_name = self.random_app_name()
-        _description = lorem.words(5).capitalize() + '.'
+        _app_name = random_app_name()
+        _description = random_app_description()
 
         _app = self._im.create_application(_app_name, _description)
 
@@ -93,7 +84,7 @@ class TestApplication(unittest.TestCase):
         """
         """
         _app_ids = list()
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
 
         _app = self._im.create_application(_app_name)
         _app_ids.append(_app.id)
@@ -107,8 +98,8 @@ class TestApplication(unittest.TestCase):
     def test_get_application(self):
         """
         """
-        _app_name = self.random_app_name()
-        _description = lorem.words(5).capitalize() + '.'
+        _app_name = random_app_name()
+        _description = random_app_description()
 
         _app = self._im.create_application(_app_name, _description)
 
@@ -124,8 +115,8 @@ class TestApplication(unittest.TestCase):
     def test_delete_application(self):
         """
         """
-        _app_name = self.random_app_name()
-        _description = lorem.words(5).capitalize() + '.'
+        _app_name = random_app_name()
+        _description = random_app_description()
         _app = self._im.create_application(_app_name, _description)
 
         _res = self._im.get_application(_app.id)
@@ -178,17 +169,10 @@ class TestProxy(unittest.TestCase):
         self._im = IDMManager(
             self.keyrock_host, self.keyrock_port, self.auth_token)
 
-        _orgs = self._im.get_organizations_by_name(KEYROCK_ORG)
-        if not _orgs:
-            self._im.create_organization(KEYROCK_ORG)
-
-    def random_app_name(self, prefix='pykeyrock unittest', words=2):
-        return f"{prefix} {lorem.words(words)}".capitalize()
-
     def test_create_proxy(self):
         """
         """
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         _app = self._im.create_application(_app_name)
 
         _proxy = self._im.create_proxy(_app.id)
@@ -200,7 +184,7 @@ class TestProxy(unittest.TestCase):
     def test_create_duplicated_proxy(self):
         """
         """
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         _app = self._im.create_application(_app_name)
 
         _proxy_1 = self._im.create_proxy(_app.id)
@@ -214,7 +198,7 @@ class TestProxy(unittest.TestCase):
     def test_get_proxy(self):
         """
         """
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         _app = self._im.create_application(_app_name)
 
         _proxy = self._im.create_proxy(_app.id)
@@ -235,7 +219,7 @@ class TestProxy(unittest.TestCase):
     def test_reset_proxy(self):
         """
         """
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         _app = self._im.create_application(_app_name)
 
         _proxy = self._im.create_proxy(_app.id)
@@ -248,7 +232,7 @@ class TestProxy(unittest.TestCase):
     def test_delete_proxy(self):
         """
         """
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         _app = self._im.create_application(_app_name)
 
         _proxy = self._im.create_proxy(_app.id)
@@ -264,7 +248,7 @@ class TestProxy(unittest.TestCase):
         self.assertEqual(_res, None, "Proxy not deleted")
 
     def test_delete_not_existing_proxy(self):
-        _app_name = self.random_app_name()
+        _app_name = random_app_name()
         _app = self._im.create_application(_app_name)
         _proxy = self._im.get_proxy(_app.id)
 

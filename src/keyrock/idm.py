@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .models import IDMApplication, IDMOrganization, IDMProxy, IDMUser
+from .models import IDMApplication, IDMOrganization, IDMProxy, IDMUser, IDMRole
 import dateutil.parser
 import inspect
 import json
@@ -638,6 +638,147 @@ class IDMManager(object):
             https://fiware-tutorials.readthedocs.io/en/stable/identity-management/#user-crud-actions
         """
         url = f"{self._idm_url}/v1/users/{user_id}"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+
+        response.raise_for_status()
+
+    ###########################################################################
+    # ROLES section
+    ###########################################################################
+    def list_roles(self, application_id):
+        """
+        Returns a list of all the roles in the IDM for the given application.
+
+        Args:
+            application_id (str): The application id.
+
+        Returns:
+            - a list of IDMRole objects.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/roles
+        """
+        url = f"{self._idm_url}/v1/applications/{application_id}/roles"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        _role_list = list()
+        if response.status_code == requests.codes.ok:
+            for _role in response.json()['roles']:
+                _role_list.append(
+                    IDMRole(role_dict=_role, application_id=application_id))
+
+        return _role_list
+
+    def create_role(self, application_id: str, role_name: str):
+        """
+        Creates a new role for the given application in the IDM System.
+
+        Warning: more than one role can exist with the same name in the same
+        application.
+
+        Args:
+            application_id (str): mandatory, the id of the application to which
+                                  the role belongs to;
+            role_name (str): mandatory, the role name; it must not be empty.
+
+        Returns:
+            - the IDMRole object.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/roles
+        """
+        url = f"{self._idm_url}/v1/applications/{application_id}/roles"
+        payload = {
+            "role": {
+                "name": role_name
+            }
+        }
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload))
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info("IDM role \"%s\" created", role_name)
+
+        return IDMRole(role_dict=response.json()['role'],
+                       application_id=application_id)
+
+    def get_role(self, application_id: str, role_id: str):
+        """
+        Retrieves information about the role with the given id that belongs to
+        the given application, if exists.
+
+        Args:
+            application_id (str): mandatory, the id of the application to which
+                                  the role belongs to;
+            role_id (str): mandatory, the role id;
+
+        Returns:
+            - an IDMRole object with the role's details
+            - None if the role does not exist.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/roles
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}"
+               f"/roles/{role_id}")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        if response.status_code == requests.codes.ok:
+            _role = IDMRole(
+                role_dict=response.json()['role'],
+                application_id=application_id)
+        else:
+            _role = None
+
+        return _role
+
+    def update_role(self, application_id: str, roled_id: str):
+        raise NotImplementedError()
+
+    def delete_role(self, application_id: str, role_id: str):
+        """
+        Deletes the role with the given id, that belongs to
+        the given application, if exists.
+        WARNING: it does not asks for confirmation!
+
+        Args:
+            application_id (str): mandatory, the id of the application to which
+                                  the role belongs to;
+            role_id (str): mandatory, the role id;
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/roles
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}"
+               f"/roles/{role_id}")
         headers = {
             'Content-Type': 'application/json',
             'X-Auth-token': self._auth_token

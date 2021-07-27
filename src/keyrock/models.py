@@ -253,3 +253,53 @@ class IDMUser(object):
                 f"username: \"{self._user_name}\", "
                 f"enabled: \"{self._user_enabled}\", "
                 f"description: \"{self._user_description}\">")
+
+
+class IDMRole(object):
+    """
+    This class represent a role of an application inside the Keyrock IDM.
+
+    Args:
+        role_name:
+            Mandatory if 'role_dict' argument is not provided or does not
+            contain the 'name' key. It takes the precedence over 'role_dict''s
+            'name' key.
+        role_dict:
+            a dictionary used to initialize the instance with the result of an
+            IDM query. If 'name' argument is not provided, 'role_dict'
+            must be provided and have the 'name' key.
+        application_id:
+            the application id to which the role belongs to.
+    """
+    def __init__(self, role_name: str = None, role_dict: dict = None,
+                 application_id: str = None):
+        self._role_dict = role_dict
+        self._role_name = role_name or role_dict['name']
+        self._role_id = role_dict.get('id', None)
+        self._role_app_id = application_id
+
+    @property
+    def name(self):
+        """Gets the role's name."""
+        return self._role_name
+
+    @property
+    def id(self):
+        """Gets the role's id."""
+        return self._role_id
+
+    @property
+    def app_id(self):
+        """Gets the role's application id."""
+        return self._role_app_id
+
+    @property
+    def dict(self):
+        """Gets the dictionary that is passed to the constructor (it can be used to
+        retrieve optional attributes returned by the IDM)."""
+        return self._role_dict
+
+    def __repr__(self):
+        return (f"<IDMRole id: {self._role_id}, "
+                f"name: \"{self._role_name}\", "
+                f"app_id: {self._role_app_id}>")
