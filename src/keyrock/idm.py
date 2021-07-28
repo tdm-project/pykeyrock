@@ -14,6 +14,7 @@
 #  limitations under the License.
 
 from .models import IDMApplication, IDMOrganization, IDMProxy, IDMUser, IDMRole
+from .models import IDMPermission
 import dateutil.parser
 import inspect
 import json
@@ -779,6 +780,163 @@ class IDMManager(object):
         """
         url = (f"{self._idm_url}/v1/applications/{application_id}"
                f"/roles/{role_id}")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+
+        response.raise_for_status()
+
+    ###########################################################################
+    # PERMISSIONS section
+    ###########################################################################
+    def list_permissions(self, application_id):
+        """
+        Returns a list of all the permissions in the IDM for the given
+        application.
+
+        Args:
+            application_id (str): The application id.
+
+        Returns:
+            - a list of IDMPermission objects.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/permissions
+        """
+        url = f"{self._idm_url}/v1/applications/{application_id}/permissions"
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        _permission_list = list()
+        if response.status_code == requests.codes.ok:
+            for _permission in response.json()['permissions']:
+                _permission_list.append(
+                    IDMPermission(permission_dict=_permission,
+                                  application_id=application_id))
+
+        return _permission_list
+
+    def create_permission(self, permission_name: str, permission_action: str,
+                          permission_resource: str, is_regex: bool = False,
+                          application_id: str = None):
+        """
+        Creates a new permission for the given application in the IDM System.
+
+        Warning: more than one permission can exist with the same name in the
+        same application.
+
+        Args:
+            permission_name:
+                The name of the permission.
+            permission_action:
+                The action allowed by the permission ("GET", "POST", "PUT",
+                "DELETE" etc.).
+            permission_resource:
+                The resource managed by the permission.
+            is_regex:
+                Whether the permission_resource is a regex or not.
+                Default: 'False'.
+            application_id:
+                the application id to which the permission belongs to.
+
+        Returns:
+            - the IDMPermission object.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/permissions
+        """
+        url = f"{self._idm_url}/v1/applications/{application_id}/permissions"
+        payload = {
+            "permission": {
+                "name": permission_name,
+                "action": permission_action,
+                "resource": permission_resource,
+                "is_regex": is_regex
+            }
+        }
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request(
+            "POST", url, headers=headers, data=json.dumps(payload))
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info("IDM permission \"%s\" created", permission_name)
+
+        return IDMPermission(permission_dict=response.json()['permission'],
+                             application_id=application_id)
+
+    def get_permission(self, application_id: str, permission_id: str):
+        """
+        Retrieves information about the permission with the given id that
+        belongs to the given application, if exists.
+
+        Args:
+            application_id (str): mandatory, the id of the application to which
+                                  the permission belongs to;
+            permission_id (str): mandatory, the permission id;
+
+        Returns:
+            - an IDMPermission object with the permission's details
+            - None if the permission does not exist.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/permission
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}"
+               f"/permissions/{permission_id}")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        if response.status_code == requests.codes.ok:
+            _permission = IDMPermission(
+                permission_dict=response.json()['permission'],
+                application_id=application_id)
+        else:
+            _permission = None
+
+        return _permission
+
+    def update_permission(self, application_id: str, permission_id: str):
+        raise NotImplementedError()
+
+    def delete_permission(self, application_id: str, permission_id: str):
+        """
+        Deletes the permission with the given id, that belongs to
+        the given application, if exists.
+        WARNING: it does not asks for confirmation!
+
+        Args:
+            application_id (str): mandatory, the id of the application to which
+                                  the permission belongs to;
+            permission_id (str): mandatory, the permission id;
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/permission
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}"
+               f"/permissions/{permission_id}")
         headers = {
             'Content-Type': 'application/json',
             'X-Auth-token': self._auth_token

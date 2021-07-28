@@ -303,3 +303,92 @@ class IDMRole(object):
         return (f"<IDMRole id: {self._role_id}, "
                 f"name: \"{self._role_name}\", "
                 f"app_id: {self._role_app_id}>")
+
+
+class IDMPermission(object):
+    """
+    This class represent a permission of an application inside the Keyrock IDM.
+
+    Args:
+        permission_name:
+            Mandatory if 'permission_dict' argument is not provided or does not
+            contain the 'name' key. It takes the precedence over
+            'permission_dict''s 'name' key. The name of the permission.
+        permission_action:
+            Mandatory if 'permission_dict' argument is not provided or does not
+            contain the 'action' key. It takes the precedence over
+            'permission_dict''s 'action' key. The action allowed by the
+            permission ("GET", "POST", "PUT", "DELETE" etc.).
+        permission_resource:
+            Mandatory if 'permission_dict' argument is not provided or does not
+            contain the 'resource' key. It takes the precedence over
+            'permission_dict''s 'resource' key. The resource managed by the
+            permission.
+        is_regex:
+            Whether the permission_resource is a regex or not.
+            Default: 'False'.
+        permission_dict:
+            a dictionary used to initialize the instance with the result of an
+            IDM query. If 'name' argument is not provided, 'permission_dict'
+            must be provided and have the 'name' key.
+        application_id:
+            the application id to which the permission belongs to.
+    """
+    def __init__(self, permission_name: str = None,
+                 permission_action: str = None,
+                 permission_resource: str = None,
+                 is_regex: bool = False,
+                 permission_dict: dict = None,
+                 application_id: str = None):
+        self._permission_dict = permission_dict
+        self._permission_name = permission_name or permission_dict['name']
+        self._permission_action = permission_name or permission_dict['action']
+        self._permission_resource = (permission_resource or
+                                     permission_dict['resource'])
+        self._permission_is_regex = is_regex
+        self._permission_id = permission_dict.get('id', None)
+        self._permission_app_id = application_id
+
+    @property
+    def name(self):
+        """Gets the permission's name."""
+        return self._permission_name
+
+    @property
+    def action(self):
+        """Gets the permission's action."""
+        return self._permission_action
+
+    @property
+    def resource(self):
+        """Gets the permission's resource."""
+        return self._permission_resource
+
+    @property
+    def is_regex(self):
+        """Gets the permission's is_regex flag."""
+        return self._permission_is_regex
+
+    @property
+    def id(self):
+        """Gets the permission's id."""
+        return self._permission_id
+
+    @property
+    def app_id(self):
+        """Gets the permission's application id."""
+        return self._permission_app_id
+
+    @property
+    def dict(self):
+        """Gets the dictionary that is passed to the constructor (it can be used to
+        retrieve optional attributes returned by the IDM)."""
+        return self._permission_dict
+
+    def __repr__(self):
+        return (f"<IDMPermission id: {self._permission_id}, "
+                f"name: \"{self._permission_name}\", "
+                f"action: \"{self._permission_action}\" on "
+                f"resource: \"{self._permission_resource}\" "
+                f"(is regex: {self._permission_is_regex}), "
+                f"app_id: {self._permission_app_id}>")

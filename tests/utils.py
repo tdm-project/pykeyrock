@@ -17,6 +17,7 @@
 #
 
 from lorem_text import lorem
+import random
 
 
 def random_org_name(prefix='pykeyrock unittest', words=2):
@@ -51,3 +52,17 @@ def random_user_password():
 
 def random_user_name(prefix='pykeyrock', words=2):
     return f"{prefix} {lorem.words(words)}".capitalize()
+
+
+def random_permission_name(prefix='pykeyrock unittest', words=2):
+    return f"{prefix} {lorem.words(words)}".capitalize()
+
+
+def random_permission_action(prefix='pykeyrock unittest', words=2):
+    _actions = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    return random.choice(_actions)
+
+
+def random_permission_resource(prefix='pykeyrock unittest', words=1):
+    _w = prefix.split() + lorem.words(words).split()
+    return '/'.join(list(map(str.lower, _w)))
