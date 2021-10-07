@@ -428,54 +428,32 @@ class IDMManager(object):
 
         return _app_list
 
-    def list_application_users(self, application_id):
+    def list_application_users(self, application_id, user_id: str=None):
         """
         Returns a list of authorized user for the applications with the related
         role.
-
-        Returns:
-            - a list of dictionaries with the authorized users for the
-              application:
-                {"user_id": user_id, "role_id": role_id}
-
-        Reference:
-            https://keyrock.docs.apiary.io/reference/keyrock-api/authorized-users-in-an-application/list-users-in-an-application
-        """
-        url = f"{self._idm_url}/v1/applications/{application_id}/users"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Auth-token': self._auth_token
-        }
-        response = requests.request("GET", url, headers=headers)
-        self._log_response(response)
-
-        _user_list = list()
-        if response.status_code == requests.codes.ok:
-            for _user in response.json()['role_user_assignments']:
-                _user_list.append(_user)
-
-        return _user_list
-
-    # TODO: unittest
-    # TODO: can merge with list_application_users
-    def list_application_user_roles(self, application_id, user_id):
-        """
-        Returns a list of roles for the given user in the applications.
+        If user_id argument is provided it returns a list of roles for the
+        given user in the applications.
 
         Args:
             application_id (str): The application id.
             user_id (str): The user id.
 
         Returns:
-            - a list of dictionaries with user and role for the
+            - a list of dictionaries with the authorized users for the
               application:
                 {"user_id": user_id, "role_id": role_id}
 
-        Reference:
+        References:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/authorized-users-in-an-application/list-users-in-an-application
             https://keyrock.docs.apiary.io/reference/keyrock-api/roles-of-user-in-an-application/list-users-role-assignments
         """
-        url = (f"{self._idm_url}/v1/applications/{application_id}/users/"
-               f"{user_id}/roles")
+        if user_id:
+            url = (f"{self._idm_url}/v1/applications/{application_id}/users/"
+                   f"{user_id}/roles")
+        else:
+            url = f"{self._idm_url}/v1/applications/{application_id}/users"
+
         headers = {
             'Content-Type': 'application/json',
             'X-Auth-token': self._auth_token
@@ -490,12 +468,9 @@ class IDMManager(object):
 
         return _user_list
 
-    # TODO: unittest
-    def assign_role_to_user_in_application(self, application_id: str,
-                                           role_id: str, user_id: str):
+    def authorize_user(self, application_id: str, role_id: str, user_id: str):
         """
-        Assignes a role to the user in the given application. In other
-        words, authorizes the user in the application with a given role.
+        Authorizes the user in the application with a given role.
 
         Args:
             application_id (str): The application id.
@@ -522,8 +497,8 @@ class IDMManager(object):
                           user_id, application_id, role_id)
 
     # TODO: unittest
-    def remove_role_from_user_in_application(self, application_id: str,
-                                             role_id: str, user_id: str):
+    def revoke_user(self, application_id: str,
+                    role_id: str, user_id: str):
         """
         Removes a role from the user in the given application. In other
         words, deauthorizes the user in the application for a given role.
@@ -813,7 +788,6 @@ class IDMManager(object):
 
         return IDMUser(user_dict=response.json()['user'])
 
-    # TODO: unittest for BY_LOGIN
     def get_user(self, user_id: str, query_type=IDMQuery.BY_UID):
         """
         Retrieves information about the user with the given id, if exists. If

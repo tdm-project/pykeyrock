@@ -24,7 +24,10 @@ This module tests CRUD operations on Keyrock Application:
 import uuid
 import unittest
 
+from utils import random_user_name, random_user_email, random_user_password
 from utils import random_app_name, random_app_description
+from utils import random_role_name
+from utils import random_permission_name, random_permission_resource
 
 # from keyrock import IDMApplication
 # from keyrock import IDMProxy
@@ -258,6 +261,74 @@ class TestProxy(unittest.TestCase):
                 HTTPError,
                 msg="Not raising error on not existing application"):
             self._im.delete_proxy(_app.id)
+
+    def test_authorize_list_revoke_application_users(self):
+        # Creates a new application
+        _app_name = random_app_name()
+        _app = self._im.create_application(_app_name)
+
+        # Creates a new user
+        _user_email = random_user_email()
+        _user_password = random_user_password()
+        _user_name = random_user_name()
+        _user = self._im.create_user(_user_email, _user_password,
+                                     _user_name)
+
+        # Creates a new role with two permissions
+        _role_1 = self._im.create_role(_app.id, random_role_name())
+        _permission_1 = self._im.create_permission(
+            random_permission_name(), "GET", random_permission_resource(),
+            False, _app.id)
+        _permission_2 = self._im.create_permission(
+            random_permission_name(), "POST", random_permission_resource(),
+            False, _app.id)
+        self._im.assign_permission_to_role(_app.id, _role_1.id,
+                                           _permission_1.id)
+        self._im.assign_permission_to_role(_app.id, _role_1.id,
+                                           _permission_2.id)
+
+        # Creates another role with only one permission
+        _role_2 = self._im.create_role(_app.id, random_role_name())
+        self._im.assign_permission_to_role(_app.id, _role_2.id,
+                                           _permission_1.id)
+
+        # Authorizes the user with roles in the application
+        self._im.authorize_user(_app.id, _role_1.id, _user.id)
+        self._im.authorize_user(_app.id, _role_2.id, _user.id)
+
+        _users_roles = self._im.list_application_users(_app.id)
+        self.assertEqual(len(_users_roles), 3, "Wrong number of users/roles")
+        self.assertIn("admin", map(lambda x: x['user_id'], _users_roles),
+                      "User 'admin' not authorized?")
+        self.assertIn(_user.id, map(lambda x: x['user_id'], _users_roles),
+                      "User '{_user}' not authorized?")
+        self.assertIn(_role_1.id, map(lambda x: x['role_id'], _users_roles),
+                      "Role '{_role_1}' not assigned")
+        self.assertIn(_role_2.id, map(lambda x: x['role_id'], _users_roles),
+                      "Role '{_role_2}' not assigned")
+
+        _users_roles = self._im.list_application_users(_app.id, _user.id)
+        self.assertEqual(len(_users_roles), 2, "Wrong number of users/roles")
+        self.assertNotIn("admin", map(lambda x: x['user_id'], _users_roles),
+                         "User 'admin' returned in user-specific listings.")
+        self.assertIn(_user.id, map(lambda x: x['user_id'], _users_roles),
+                      "User '{_user}' not authorized?")
+        self.assertIn(_role_1.id, map(lambda x: x['role_id'], _users_roles),
+                      "Role '{_role_1}' not assigned")
+        self.assertIn(_role_2.id, map(lambda x: x['role_id'], _users_roles),
+                      "Role '{_role_2}' not assigned")
+
+        # Revokes role_2 from user
+        self._im.revoke_user(_app.id, _role_2.id, _user.id)
+
+        _users_roles = self._im.list_application_users(_app.id, _user.id)
+        self.assertEqual(len(_users_roles), 1, "Wrong number of users/roles")
+        self.assertIn(_user.id, map(lambda x: x['user_id'], _users_roles),
+                      "User '{_user}' not authorized?")
+        self.assertIn(_role_1.id, map(lambda x: x['role_id'], _users_roles),
+                      "Role '{_role_1}' not assigned")
+        self.assertNotIn(_role_2.id, map(lambda x: x['role_id'], _users_roles),
+                         "Role '{_role_2}' already assigned")
 
     def tearDown(self):
         _apps = self._im.list_applications()
