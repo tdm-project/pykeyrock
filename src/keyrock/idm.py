@@ -16,11 +16,18 @@
 from .models import IDMApplication, IDMOrganization, IDMProxy, IDMUser, IDMRole
 from .models import IDMPermission
 import dateutil.parser
+import enum
 import inspect
 import json
 import logging
 import requests
 from http.client import responses
+
+
+class IDMQuery(enum.Enum):
+    BY_UID = 0
+    BY_NAME = 1
+    BY_LOGIN = 2
 
 
 def get_auth_token(host: str, port: int, user: str, password: str):
@@ -107,33 +114,63 @@ class IDMManager(object):
     ###########################################################################
     # ORGANIZATIONS section
     ###########################################################################
-    def get_organization(self, organization_id: str):
+    def get_organization(self, organization_id: str,
+                         query_type=IDMQuery.BY_UID):
         """
-        Retrieves information about the organization with the given id,
-        if exists.
+        Retrieves information about the organization with the given id, if
+        exists. If the parameter 'query_type' is different from
+        'IDMQuery.BY_UID' the 'organization_id' parameter is searched by name.
+        Warning: in this way more than one organization can exist with the same
+        name.
 
         Args:
             organization_id (str): The organization id.
+            query_type (enum): The query type: BY_UID, BY_NAME, BY_LOGIN etc.
 
-            Returns:
-                - an IDMOrganization object with the organization details
-                - None if the organization does not exist.
+        Returns:
+            - an IDMOrganization object with the organization details
+            - None if the organization does not exist.
+            - a list of IDMOrganization objects if the 'query_type' is
+              'IDMQuery.BY_NAME' and more than one organization are found.
+
+        Raises:
+            - ValueError if the 'query_type' is not equal to IDMQuery.BY_UID or
+                         IDMQuery.BY_NAME.
+
+        Reference:
+            https://keyrock.docs.apiary.io/#reference/keyrock-api/organization/read-info-about-an-organization
         """
-        url = f"{self._idm_url}/v1/organizations/{organization_id}"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Auth-token': self._auth_token
-        }
-        response = requests.request("GET", url, headers=headers)
-        self._log_response(response)
+        if query_type == IDMQuery.BY_UID:
+            url = f"{self._idm_url}/v1/organizations/{organization_id}"
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Auth-token': self._auth_token
+            }
+            response = requests.request("GET", url, headers=headers)
+            self._log_response(response)
 
-        if response.status_code == requests.codes.ok:
-            _organization = IDMOrganization(
-                org_dict=response.json()['organization'])
-        else:
-            _organization = None
+            if response.status_code == requests.codes.ok:
+                _organization = IDMOrganization(
+                    org_dict=response.json()['organization'])
+            else:
+                _organization = None
 
-        return _organization
+            return _organization
+
+        elif query_type == IDMQuery.BY_NAME:
+            orgs = self.list_organizations()
+            org_list = list()
+
+            for _org in orgs:
+                if _org.name == organization_id:
+                    org_list.append(_org)
+
+            if len(org_list) > 1:
+                self._logger.warning(
+                    'multiple organization with the name "%s" found',
+                    organization_id)
+
+            return org_list
 
     def list_organizations(self):
         """
@@ -182,32 +219,6 @@ class IDMManager(object):
 
         response.raise_for_status()
 
-    def get_organizations_by_name(self, org_name: str):
-        """
-        Retrieves information about the organizations with the given name,
-        if exist. Warning: more than one organization can exist with the same
-        name.
-
-        Args:
-            organization_name (str): The organization name.
-
-            Returns:
-                - a list of IDMOrganization objects.
-        """
-        orgs = self.list_organizations()
-        org_list = list()
-
-        for _org in orgs:
-            if _org.name == org_name:
-                org_list.append(_org)
-
-        if len(org_list) > 1:
-            self._logger.warning(
-                'multiple organization with the name "%s" found',
-                org_name)
-
-        return org_list
-
     def create_organization(self, name, description: str = None):
         """
         Creates a new organization.
@@ -251,22 +262,16 @@ class IDMManager(object):
     def update_organization(self, organization_id: str):
         raise NotImplementedError()
 
-    ###########################################################################
-    # APPLICATIONS section
-    ###########################################################################
-    def get_application(self, application_id: str):
+    def list_organization_members(self, organization_id):
         """
-        Retrieves information about the application with the given id,
-        if exists.
-
-        Args:
-            application_id (str): The application id.
+        Returns a list of members of the organization with their role.
 
         Returns:
-            - an IDMApplication object with the application details
-            - None if the application does not exist.
+            - a list of dictionaries with the user_id of the members for the
+              organization:
+                {"user_id": user_id, "role": "owner" or "member"}
         """
-        url = f"{self._idm_url}/v1/applications/{application_id}"
+        url = f"{self._idm_url}/v1/organizations/{organization_id}/users"
         headers = {
             'Content-Type': 'application/json',
             'X-Auth-token': self._auth_token
@@ -274,13 +279,166 @@ class IDMManager(object):
         response = requests.request("GET", url, headers=headers)
         self._log_response(response)
 
+        _user_list = list()
         if response.status_code == requests.codes.ok:
-            _application = IDMApplication(
-                app_dict=response.json()['application'])
-        else:
-            _application = None
+            for _user in response.json()['organization_users']:
+                _user_list.append(_user)
 
-        return _application
+        return _user_list
+
+    def add_user_to_organization(self, organization_id: str, user_id: str,
+                                 is_owner: bool = False):
+        """
+        Creates a relationship between an user and an organization with the
+        given role.
+
+        Args:
+            organization_id (str): The organization id.
+            user_id (str): The user id.
+            is_owner (bool): if True the user is added as Organization owner, a
+                             member otherwise (default = False)
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/user-organization-relationship/create-relationship
+        """
+        _org_role = 'owner' if is_owner else 'member'
+        url = (f"{self._idm_url}/v1/organizations/{organization_id}/users/"
+               f"{user_id}/organization_roles/{_org_role}")
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request("PUT", url, headers=headers)
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info(("IDM user \"%s\" associated to \"%s\" "
+                           "organization with the \"%s\" role"),
+                          user_id, organization_id, _org_role)
+
+    def remove_user_from_organization(self, organization_id: str, user_id: str,
+                                      ownership: bool=False):
+        """
+        Remove membership or ownership of an user from the organization.
+        WARNING: it does not asks for confirmation!
+
+        Args:
+            organization_id (str): mandatory, the id of the organization;
+            user_id (str): mandatory, the user id;
+            ownership (bool): whether to remove ownership or membership
+                              (default: False)
+
+        Raises:
+            HTTPError if the operation was not successfull (i.e.: organization
+            does not exist, user does not exist, wrong role).
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/user-organization-relationship/delete-relationship
+        """
+        _org_role = 'owner' if ownership else 'member'
+        url = (f"{self._idm_url}/v1/organizations/{organization_id}"
+               f"/users/{user_id}/organization_roles/{_org_role}")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+
+        response.raise_for_status()
+
+    def get_organization_member(self, organization_id: str, user_id: str):
+        """
+        Retrieves information about organization memebership of the given user.
+
+        Args:
+            organization_id (str): The organization id.
+            user_id (str): The user id.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/user-organization-relationships/info-of-user-organization-relationship
+        """
+        url = (f"{self._idm_url}/v1/organizations/{organization_id}/users/"
+               f"{user_id}/organization_roles")
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        if response.status_code == requests.codes.ok:
+            _membership = response.json()['organization_user']
+        else:
+            _membership = None
+
+        return _membership
+
+    ###########################################################################
+    # APPLICATIONS section
+    ###########################################################################
+    def get_application(self, application_id: str,
+                        query_type=IDMQuery.BY_UID):
+        """
+        Retrieves information about the appliction with the given id, if
+        exists. If the parameter 'query_type' is different from
+        'IDMQuery.BY_UID' the 'application_id' parameter is searched by name.
+        Warning: in this way more than one application can exist with the same
+        name.
+
+        Args:
+            application_id (str): The application id.
+            query_type (enum): The query type: BY_UID, BY_NAME, BY_LOGIN etc.
+
+        Returns:
+            - an IDMApplication object with the application details
+            - None if the application does not exist.
+            - a list of IDMApplication objects if the 'query_type' is
+              'IDMQuery.BY_NAME' and more than one application are found.
+
+        Raises:
+            - ValueError if the 'query_type' is not equal to IDMQuery.BY_UID or
+                         IDMQuery.BY_NAME.
+
+        References:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/applications/list-applications
+            https://keyrock.docs.apiary.io/reference/keyrock-api/application/read-application-details
+        """
+        if query_type == IDMQuery.BY_UID:
+            url = f"{self._idm_url}/v1/applications/{application_id}"
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Auth-token': self._auth_token
+            }
+            response = requests.request("GET", url, headers=headers)
+            self._log_response(response)
+
+            if response.status_code == requests.codes.ok:
+                _application = IDMApplication(
+                    app_dict=response.json()['application'])
+            else:
+                _application = None
+
+            return _application
+
+        elif query_type == IDMQuery.BY_NAME:
+            apps = self.list_applications()
+            app_list = list()
+
+            for _app in apps:
+                if _app.name == application_id:
+                    app_list.append(_app)
+
+            if len(app_list) > 1:
+                self._logger.warning(
+                    'multiple applications with the name "%s" found',
+                    application_id)
+
+            return app_list
 
     def list_applications(self):
         """
@@ -305,6 +463,105 @@ class IDMManager(object):
 
         return _app_list
 
+    def list_application_users(self, application_id, user_id: str=None):
+        """
+        Returns a list of authorized user for the applications with the related
+        role.
+        If user_id argument is provided it returns a list of roles for the
+        given user in the applications.
+
+        Args:
+            application_id (str): The application id.
+            user_id (str): The user id.
+
+        Returns:
+            - a list of dictionaries with the authorized users for the
+              application:
+                {"user_id": user_id, "role_id": role_id}
+
+        References:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/authorized-users-in-an-application/list-users-in-an-application
+            https://keyrock.docs.apiary.io/reference/keyrock-api/roles-of-user-in-an-application/list-users-role-assignments
+        """
+        if user_id:
+            url = (f"{self._idm_url}/v1/applications/{application_id}/users/"
+                   f"{user_id}/roles")
+        else:
+            url = f"{self._idm_url}/v1/applications/{application_id}/users"
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        _user_list = list()
+        if response.status_code == requests.codes.ok:
+            for _user in response.json()['role_user_assignments']:
+                _user_list.append(_user)
+
+        return _user_list
+
+    def authorize_user(self, application_id: str, role_id: str, user_id: str):
+        """
+        Authorizes the user in the application with a given role.
+
+        Args:
+            application_id (str): The application id.
+            role_id (str): The role id.
+            user_id (str): The user id.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/role-user-relationship-in-an-application/assign-a-role-to-a-user
+        """
+
+        url = (f"{self._idm_url}/v1/applications/{application_id}/users/"
+               f"{user_id}/roles/{role_id}")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request("POST", url, headers=headers)
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info("User \"%s\" authorized to \"%s\" application with "
+                          "the \"%s\" role",
+                          user_id, application_id, role_id)
+
+    # TODO: unittest
+    def revoke_user(self, application_id: str,
+                    role_id: str, user_id: str):
+        """
+        Removes a role from the user in the given application. In other
+        words, deauthorizes the user in the application for a given role.
+
+        Args:
+            application_id (str): The application id.
+            role_id (str): The role id.
+            user_id (str): The user id.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/role-user-relationship-in-an-application/remove-a-role-assignment-from-a-user
+        """
+
+        url = (f"{self._idm_url}/v1/applications/{application_id}/users/"
+               f"{user_id}/roles/{role_id}")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+
+        response.raise_for_status()
+
     def delete_application(self, application_id: str):
         """
         Deletes the application with the given id, if exist.
@@ -325,31 +582,6 @@ class IDMManager(object):
         self._log_response(response)
 
         response.raise_for_status()
-
-    def get_applications_by_name(self, application_name: str):
-        """
-        Retrieves information about the applications with the given name, if
-        exist. More than one applications can exists with the same name.
-
-        Args:
-            application_name (str): The application name.
-
-            Returns:
-                - a list of IDMApplication objects.
-        """
-        apps = self.list_applications()
-        app_list = list()
-
-        for _app in apps:
-            if _app.name == application_name:
-                app_list.append(_app)
-
-        if len(app_list) > 1:
-            self._logger.warning(
-                'multiple applications with the name "%s" found',
-                application_name)
-
-        return app_list
 
     def create_application(self, name, description: str = None):
         """
@@ -475,6 +707,7 @@ class IDMManager(object):
 
         Raises:
             HTTPError if the operation was not successfull.
+
         Reference:
             https://fiware-tutorials.readthedocs.io/en/stable/pep-proxy/#pep-proxy-crud-actions
         """
@@ -565,33 +798,51 @@ class IDMManager(object):
 
         return IDMUser(user_dict=response.json()['user'])
 
-    def get_user(self, user_id: str):
+    def get_user(self, user_id: str, query_type=IDMQuery.BY_UID):
         """
-        Retrieves information about the user with the given id, if exists.
+        Retrieves information about the user with the given id, if exists. If
+        the parameter 'query_type' is different from 'IDMQuery.BY_UID' the
+        'user_id' parameter is searched per name, login, etc.
 
         Args:
             user_id (str): The user's id
+            query_type (enum): The query type: BY_UID, BY_NAME, BY_LOGIN etc.
 
         Returns:
             - an IDMUSer object with the user's details
             - None if the user does not exist.
 
+        Raises:
+            - ValueError if the 'query_type' is not equal to IDMQuery.BY_UID or
+                         IDMQuery.BY_LOGIN.
+
         Reference:
             https://fiware-tutorials.readthedocs.io/en/stable/identity-management/#user-crud-actions
         """
-        url = f"{self._idm_url}/v1/users/{user_id}"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Auth-token': self._auth_token
-        }
-        response = requests.request("GET", url, headers=headers)
-        self._log_response(response)
+        if query_type == IDMQuery.BY_UID:
+            url = f"{self._idm_url}/v1/users/{user_id}"
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Auth-token': self._auth_token
+            }
+            response = requests.request("GET", url, headers=headers)
+            self._log_response(response)
 
-        if response.status_code == requests.codes.ok:
-            _user = IDMUser(
-                user_dict=response.json()['user'])
-        else:
+            if response.status_code == requests.codes.ok:
+                _user = IDMUser(
+                    user_dict=response.json()['user'])
+            else:
+                _user = None
+        elif query_type == IDMQuery.BY_LOGIN:
+            _users = self.list_users()
             _user = None
+
+            for _u in _users:
+                if _u.login == user_id:
+                    _user = _u
+                    break
+        else:
+            raise ValueError("Query type not valid")
 
         return _user
 
@@ -788,6 +1039,101 @@ class IDMManager(object):
         self._log_response(response)
 
         response.raise_for_status()
+
+    def list_role_permissions(self, application_id, role_id):
+        """
+        Returns a list of all the permissions in the IDM associated to the
+        given role in the given application.
+
+        Args:
+            application_id (str): The application id.
+            role_id (str): The role id.
+
+        Returns:
+            - a list of IDMPermission objects.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/role-permission-relationships/list-permissions-associated-to-a-role
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}/roles/"
+               f"{role_id}/permissions")
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+        response = requests.request("GET", url, headers=headers)
+        self._log_response(response)
+
+        _permission_list = list()
+        if response.status_code == requests.codes.ok:
+            for _permission in response.json()['role_permission_assignments']:
+                _permission_list.append(
+                    IDMPermission(permission_dict=_permission,
+                                  application_id=application_id))
+
+        return _permission_list
+
+    def assign_permission_to_role(self, application_id: str, role_id: str,
+                                  permission_id: str):
+        """
+        Assigns an existing permission to the given role in the IDM System.
+
+        Args:
+            application_id (str): The application id.
+            role_id (str): The role id.
+            permission_id (str): The permission id.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/role-permission-relationship/assign-a-permission-to-a-role
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}/roles/"
+               f"{role_id}/permissions/{permission_id}")
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request("PUT", url, headers=headers)
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info("IDM permission \"%s\" assigned to \"%s\" role",
+                          permission_id, role_id)
+
+    def remove_permission_from_role(self, application_id: str, role_id: str,
+                                    permission_id: str):
+        """
+        Removes an existing permission from the given role in the IDM System.
+
+        Args:
+            application_id (str): The application id.
+            role_id (str): The role id.
+            permission_id (str): The permission id.
+
+        Raises:
+            HTTPError if the operation was not successfull.
+
+        Reference:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/role-permission-relationship/remove-a-permission-from-a-role
+        """
+        url = (f"{self._idm_url}/v1/applications/{application_id}/roles/"
+               f"{role_id}/permissions/{permission_id}")
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Auth-token': self._auth_token
+        }
+
+        response = requests.request("DELETE", url, headers=headers)
+        self._log_response(response)
+        response.raise_for_status()
+
+        self._logger.info("IDM permission \"%s\" removed from \"%s\" role",
+                          permission_id, role_id)
 
     ###########################################################################
     # PERMISSIONS section

@@ -26,7 +26,7 @@ import unittest
 
 from utils import random_user_name, random_user_email, random_user_password
 
-from keyrock import IDMManager, get_auth_token
+from keyrock import IDMManager, IDMQuery, get_auth_token
 from requests.exceptions import HTTPError
 
 
@@ -46,7 +46,7 @@ class TestUser(unittest.TestCase):
         self._im = IDMManager(
             self.keyrock_host, self.keyrock_port, self.auth_token)
 
-    def test_create_user(self):
+    def test_10_create_user(self):
         """
         """
         _user_email = random_user_email()
@@ -62,7 +62,7 @@ class TestUser(unittest.TestCase):
         self.assertEqual(_user.email, _user_email,
                          "Email/Login doesn't match")
 
-    def test_get_user(self):
+    def test_20_get_user(self):
         """
         """
         _user_email = random_user_email()
@@ -77,12 +77,28 @@ class TestUser(unittest.TestCase):
         self.assertEqual(_user.description, _res.description,
                          "Wrong description")
 
-    def test_get_not_existing_user(self):
+    def test_21_get_user_by_login(self):
+        """
+        """
+        _user_email = random_user_email()
+        _user_password = random_user_password()
+        _user_name = random_user_name()
+        _user = self._im.create_user(_user_email, _user_password,
+                                     _user_name)
+
+        _res = self._im.get_user(_user_email, IDMQuery.BY_LOGIN)
+        self.assertEqual(_user.id, _res.id, "Wrong id")
+        self.assertEqual(_user.email, _res.email, "Wrong name")
+        self.assertEqual(_user.name, _res.name, "Wrong name")
+        self.assertEqual(_user.description, _res.description,
+                         "Wrong description")
+
+    def test_22_get_not_existing_user(self):
         _res = self._im.get_application(uuid.uuid4())
         self.assertEqual(_res, None,
                          "Not returning None object for not existing user")
 
-    def test_update_user(self):
+    def test_40_update_user(self):
         """
         """
         _user_id = uuid.uuid4()
@@ -90,7 +106,7 @@ class TestUser(unittest.TestCase):
                 NotImplementedError, msg="Not implemented method exists?"):
             self._im.update_user(_user_id)
 
-    def test_delete_user(self):
+    def test_30_delete_user(self):
         """
         """
         _user_email = random_user_email()
@@ -109,7 +125,7 @@ class TestUser(unittest.TestCase):
         _res = self._im.get_user(_user.id)
         self.assertEqual(_res, None, 'User not deleted')
 
-    def test_delete_not_existing_user(self):
+    def test_31_delete_not_existing_user(self):
         """
         """
         _user_id = uuid.uuid4()

@@ -25,7 +25,8 @@ import unittest
 import uuid
 
 from keyrock import IDMManager, get_auth_token
-from utils import random_role_name, random_app_name
+from utils import random_role_name, random_app_name, random_permission_name
+from utils import random_permission_resource
 
 from requests.exceptions import HTTPError
 
@@ -146,6 +147,44 @@ class TestRole(unittest.TestCase):
                 HTTPError,
                 msg="Not raising error on not existing application"):
             self._im.delete_role(self._app.id, _role_id)
+
+    def test_role_permissions_operations(self):
+        """
+        """
+        # Create a new role
+        _role = self._im.create_role(self._app.id, random_role_name())
+
+        # Create two new permissions
+        _permission_1 = self._im.create_permission(
+            random_permission_name(), "GET", random_permission_resource(),
+            False, self._app.id)
+        _permission_2 = self._im.create_permission(
+            random_permission_name(), "POST", random_permission_resource(),
+            False, self._app.id)
+
+        self._im.assign_permission_to_role(self._app.id, _role.id,
+                                           _permission_1.id)
+        self._im.assign_permission_to_role(self._app.id, _role.id,
+                                           _permission_2.id)
+
+        _perms = self._im.list_role_permissions(self._app.id, _role.id)
+        self.assertNotEqual(len(_perms), 0, 'No permissions assigned to role')
+        self.assertEqual(len(_perms), 2,
+                         'Wrong number of permissions assigned to role')
+
+        self._im.remove_permission_from_role(self._app.id, _role.id,
+                                             _permission_2.id)
+        _perms = self._im.list_role_permissions(self._app.id, _role.id)
+        self.assertEqual(len(_perms), 1,
+                         'Wrong number of permissions assigned to role')
+        self.assertEqual(_perms[0].id, _permission_1.id,
+                         "Wrong permission removed")
+
+        self._im.remove_permission_from_role(self._app.id, _role.id,
+                                             _permission_1.id)
+        _perms = self._im.list_role_permissions(self._app.id, _role.id)
+        self.assertEqual(len(_perms), 0,
+                         "Not all permissions removed from role")
 
     def tearDown(self):
         _apps = self._im.list_applications()
