@@ -31,7 +31,7 @@ from utils import random_permission_name, random_permission_resource
 
 # from keyrock import IDMApplication
 # from keyrock import IDMProxy
-from keyrock import IDMManager, get_auth_token
+from keyrock import IDMManager, IDMQuery, get_auth_token
 
 from requests.exceptions import HTTPError
 
@@ -58,7 +58,7 @@ class TestApplication(unittest.TestCase):
         _app_name = random_app_name()
         self._im.create_application(_app_name)
 
-        _apps = self._im.get_applications_by_name(_app_name)
+        _apps = self._im.get_application(_app_name, IDMQuery.BY_NAME)
         self.assertNotEqual(len(_apps), 0, "Application not created")
         self.assertEqual(len(_apps), 1, "More than one applications created")
 
@@ -95,7 +95,7 @@ class TestApplication(unittest.TestCase):
         _app = self._im.create_application(_app_name)
         _app_ids.append(_app.id)
 
-        _apps = self._im.get_applications_by_name(_app_name)
+        _apps = self._im.get_application(_app_name, IDMQuery.BY_NAME)
         self.assertEqual(len(_apps), 2, "Duplicated application not created")
 
     def test_get_application(self):

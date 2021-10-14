@@ -26,7 +26,7 @@ import unittest
 
 from utils import random_org_name, random_org_description
 
-from keyrock import IDMManager, get_auth_token
+from keyrock import IDMManager, IDMQuery, get_auth_token
 from requests.exceptions import HTTPError
 
 
@@ -54,7 +54,7 @@ class TestOrganization(unittest.TestCase):
         _org_name = random_org_name()
         self._im.create_organization(_org_name)
 
-        _orgs = self._im.get_organizations_by_name(_org_name)
+        _orgs = self._im.get_organization(_org_name, IDMQuery.BY_NAME)
         self.assertNotEqual(len(_orgs), 0, "Organization not created")
         self.assertEqual(len(_orgs), 1, "More than one organizations created")
 
@@ -91,7 +91,7 @@ class TestOrganization(unittest.TestCase):
         _org = self._im.create_organization(_org_name)
         _org_ids.append(_org.id)
 
-        _orgs = self._im.get_organizations_by_name(_org_name)
+        _orgs = self._im.get_organization(_org_name, IDMQuery.BY_NAME)
         self.assertEqual(len(_orgs), 2, "Duplicated organizations not created")
 
     def test_get_organization(self):

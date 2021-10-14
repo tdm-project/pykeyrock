@@ -114,33 +114,63 @@ class IDMManager(object):
     ###########################################################################
     # ORGANIZATIONS section
     ###########################################################################
-    def get_organization(self, organization_id: str):
+    def get_organization(self, organization_id: str,
+                         query_type=IDMQuery.BY_UID):
         """
-        Retrieves information about the organization with the given id,
-        if exists.
+        Retrieves information about the organization with the given id, if
+        exists. If the parameter 'query_type' is different from
+        'IDMQuery.BY_UID' the 'organization_id' parameter is searched by name.
+        Warning: in this way more than one organization can exist with the same
+        name.
 
         Args:
             organization_id (str): The organization id.
+            query_type (enum): The query type: BY_UID, BY_NAME, BY_LOGIN etc.
 
-            Returns:
-                - an IDMOrganization object with the organization details
-                - None if the organization does not exist.
+        Returns:
+            - an IDMOrganization object with the organization details
+            - None if the organization does not exist.
+            - a list of IDMOrganization objects if the 'query_type' is
+              'IDMQuery.BY_NAME' and more than one organization are found.
+
+        Raises:
+            - ValueError if the 'query_type' is not equal to IDMQuery.BY_UID or
+                         IDMQuery.BY_NAME.
+
+        Reference:
+            https://keyrock.docs.apiary.io/#reference/keyrock-api/organization/read-info-about-an-organization
         """
-        url = f"{self._idm_url}/v1/organizations/{organization_id}"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Auth-token': self._auth_token
-        }
-        response = requests.request("GET", url, headers=headers)
-        self._log_response(response)
+        if query_type == IDMQuery.BY_UID:
+            url = f"{self._idm_url}/v1/organizations/{organization_id}"
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Auth-token': self._auth_token
+            }
+            response = requests.request("GET", url, headers=headers)
+            self._log_response(response)
 
-        if response.status_code == requests.codes.ok:
-            _organization = IDMOrganization(
-                org_dict=response.json()['organization'])
-        else:
-            _organization = None
+            if response.status_code == requests.codes.ok:
+                _organization = IDMOrganization(
+                    org_dict=response.json()['organization'])
+            else:
+                _organization = None
 
-        return _organization
+            return _organization
+
+        elif query_type == IDMQuery.BY_NAME:
+            orgs = self.list_organizations()
+            org_list = list()
+
+            for _org in orgs:
+                if _org.name == organization_id:
+                    org_list.append(_org)
+
+            if len(org_list) > 1:
+                self._logger.warning(
+                    'multiple organization with the name "%s" found',
+                    organization_id)
+
+            return org_list
 
     def list_organizations(self):
         """
@@ -188,32 +218,6 @@ class IDMManager(object):
         self._log_response(response)
 
         response.raise_for_status()
-
-    def get_organizations_by_name(self, org_name: str):
-        """
-        Retrieves information about the organizations with the given name,
-        if exist. Warning: more than one organization can exist with the same
-        name.
-
-        Args:
-            organization_name (str): The organization name.
-
-            Returns:
-                - a list of IDMOrganization objects.
-        """
-        orgs = self.list_organizations()
-        org_list = list()
-
-        for _org in orgs:
-            if _org.name == org_name:
-                org_list.append(_org)
-
-        if len(org_list) > 1:
-            self._logger.warning(
-                'multiple organization with the name "%s" found',
-                org_name)
-
-        return org_list
 
     def create_organization(self, name, description: str = None):
         """
@@ -377,33 +381,64 @@ class IDMManager(object):
     ###########################################################################
     # APPLICATIONS section
     ###########################################################################
-    def get_application(self, application_id: str):
+    def get_application(self, application_id: str,
+                        query_type=IDMQuery.BY_UID):
         """
-        Retrieves information about the application with the given id,
-        if exists.
+        Retrieves information about the appliction with the given id, if
+        exists. If the parameter 'query_type' is different from
+        'IDMQuery.BY_UID' the 'application_id' parameter is searched by name.
+        Warning: in this way more than one application can exist with the same
+        name.
 
         Args:
             application_id (str): The application id.
+            query_type (enum): The query type: BY_UID, BY_NAME, BY_LOGIN etc.
 
         Returns:
             - an IDMApplication object with the application details
             - None if the application does not exist.
+            - a list of IDMApplication objects if the 'query_type' is
+              'IDMQuery.BY_NAME' and more than one application are found.
+
+        Raises:
+            - ValueError if the 'query_type' is not equal to IDMQuery.BY_UID or
+                         IDMQuery.BY_NAME.
+
+        References:
+            https://keyrock.docs.apiary.io/reference/keyrock-api/applications/list-applications
+            https://keyrock.docs.apiary.io/reference/keyrock-api/application/read-application-details
         """
-        url = f"{self._idm_url}/v1/applications/{application_id}"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Auth-token': self._auth_token
-        }
-        response = requests.request("GET", url, headers=headers)
-        self._log_response(response)
+        if query_type == IDMQuery.BY_UID:
+            url = f"{self._idm_url}/v1/applications/{application_id}"
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Auth-token': self._auth_token
+            }
+            response = requests.request("GET", url, headers=headers)
+            self._log_response(response)
 
-        if response.status_code == requests.codes.ok:
-            _application = IDMApplication(
-                app_dict=response.json()['application'])
-        else:
-            _application = None
+            if response.status_code == requests.codes.ok:
+                _application = IDMApplication(
+                    app_dict=response.json()['application'])
+            else:
+                _application = None
 
-        return _application
+            return _application
+
+        elif query_type == IDMQuery.BY_NAME:
+            apps = self.list_applications()
+            app_list = list()
+
+            for _app in apps:
+                if _app.name == application_id:
+                    app_list.append(_app)
+
+            if len(app_list) > 1:
+                self._logger.warning(
+                    'multiple applications with the name "%s" found',
+                    application_id)
+
+            return app_list
 
     def list_applications(self):
         """
@@ -547,31 +582,6 @@ class IDMManager(object):
         self._log_response(response)
 
         response.raise_for_status()
-
-    def get_applications_by_name(self, application_name: str):
-        """
-        Retrieves information about the applications with the given name, if
-        exist. More than one applications can exists with the same name.
-
-        Args:
-            application_name (str): The application name.
-
-            Returns:
-                - a list of IDMApplication objects.
-        """
-        apps = self.list_applications()
-        app_list = list()
-
-        for _app in apps:
-            if _app.name == application_name:
-                app_list.append(_app)
-
-        if len(app_list) > 1:
-            self._logger.warning(
-                'multiple applications with the name "%s" found',
-                application_name)
-
-        return app_list
 
     def create_application(self, name, description: str = None):
         """
