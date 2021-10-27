@@ -61,6 +61,7 @@ jobs:
       run: |
         sleep 30
         pytest -v tests/
+        sleep 10
 
     - name: Stop containers
       run: docker-compose -f tests/docker-compose.yaml down
