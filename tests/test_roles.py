@@ -24,7 +24,7 @@ This module tests CRUD operations on Keyrock Roles:
 import unittest
 import uuid
 
-from keyrock import IDMManager, get_auth_token
+from keyrock import IDMManager, IDMQuery, get_auth_token
 from utils import random_role_name, random_app_name, random_permission_name
 from utils import random_permission_resource
 
@@ -78,11 +78,15 @@ class TestRole(unittest.TestCase):
         self.assertNotEqual(_dup_role, None, "Role not created")
 
         self.assertEqual(_new_role.name, _dup_role.name,
-                         "Role name doesn't matche")
+                         "Role names don't match")
         self.assertEqual(_new_role.app_id, _dup_role.app_id,
-                         "Role app id doesn't matche")
+                         "Role app ids don't match")
         self.assertNotEqual(_new_role.id, _dup_role.id,
-                            "Role id are the same")
+                            "Role ids are the same")
+        _roles = self._im.get_role(self._app.id, _role_name, IDMQuery.BY_NAME)
+        print(_roles)
+        self.assertEqual(len(_roles), 2,
+                         "Wrong number of roles found for the same name")
 
     def test_create_empty_role(self):
         """
