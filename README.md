@@ -12,6 +12,10 @@
 * ***update*** operation for *Role* is not implemented.
 * ***update*** operation for *Permission* is not implemented.
 
+* ***get_auth_token()*** is not documented.
+* ***get_token_info()*** is not documented.
+* ***check_auth_token()*** is not documented.
+
 ### Acknowledgements
 
 This work is supported by the TDM project: http://www.tdm-project.it/. 

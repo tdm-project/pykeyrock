@@ -17,7 +17,8 @@
 .. module:: keyrock
 """
 
-from .idm import IDMManager, IDMQuery, get_auth_token
+from .idm import IDMManager, IDMQuery
+from .idm import get_auth_token, check_auth_token
 from .models import IDMApplication
 from .version import version
 

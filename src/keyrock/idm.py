@@ -53,6 +53,26 @@ def get_auth_token(host: str, port: int, user: str, password: str):
     return(token, expires)
 
 
+def get_token_info(host: str, port: int, auth_token: str, subj_token: str):
+    url = f"http://{host}:{port}/v1/auth/tokens"
+
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Auth-token': auth_token,
+        'X-Subject-token': subj_token
+    }
+
+    response = requests.request("GET", url, headers=headers)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def check_auth_token(host: str, port: int, auth_token: str, subj_token: str):
+    _token_info = get_token_info(host, port, auth_token, subj_token)
+    return(_token_info['valid'] and _token_info['User']['enabled'], _token_info['User']['admin'])
+
+
 class IDMManager(object):
     def __init__(self, host: str, port: int, auth_token: str):
         self._host = host
@@ -420,8 +440,10 @@ class IDMManager(object):
             if response.status_code == requests.codes.ok:
                 _application = IDMApplication(
                     app_dict=response.json()['application'])
-            else:
+            elif response.status_code == requests.codes.not_found:
                 _application = None
+            else:
+                response.raise_for_status()
 
             return _application
 
@@ -455,13 +477,16 @@ class IDMManager(object):
         response = requests.request("GET", url, headers=headers)
         self._log_response(response)
 
-        _app_list = list()
         if response.status_code == requests.codes.ok:
+            _app_list = list()
             for _app in response.json()['applications']:
                 _app_list.append(
                     IDMApplication(app_dict=_app))
-
-        return _app_list
+            return _app_list
+        elif response.status_code == requests.codes.not_found:
+            return list()
+        else:
+            response.raise_for_status()
 
     def list_application_users(self, application_id, user_id: str=None):
         """
@@ -974,40 +999,66 @@ class IDMManager(object):
         return IDMRole(role_dict=response.json()['role'],
                        application_id=application_id)
 
-    def get_role(self, application_id: str, role_id: str):
+    def get_role(self, application_id: str, role_id: str, query_type=IDMQuery.BY_UID):
         """
         Retrieves information about the role with the given id that belongs to
-        the given application, if exists.
+        the given application, if exists.  If the parameter 'query_type' is
+        different from 'IDMQuery.BY_UID' the 'role_id' parameter is
+        searched by name.  Warning: in this way more than one role can
+        exist with the same name.
 
         Args:
             application_id (str): mandatory, the id of the application to which
                                   the role belongs to;
             role_id (str): mandatory, the role id;
+            query_type (enum): The query type: BY_UID or BY_NAME.
 
         Returns:
             - an IDMRole object with the role's details
             - None if the role does not exist.
+            - a list of IDMRole objects if the 'query_type' is
+              'IDMQuery.BY_NAME'.
+
+        Raises:
+            - ValueError if the 'query_type' is not equal to IDMQuery.BY_UID or
+                         IDMQuery.BY_NAME.
 
         Reference:
             https://keyrock.docs.apiary.io/reference/keyrock-api/roles
         """
-        url = (f"{self._idm_url}/v1/applications/{application_id}"
-               f"/roles/{role_id}")
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Auth-token': self._auth_token
-        }
-        response = requests.request("GET", url, headers=headers)
-        self._log_response(response)
+        if query_type == IDMQuery.BY_UID:
+            url = (f"{self._idm_url}/v1/applications/{application_id}"
+                   f"/roles/{role_id}")
+            headers = {
+                'Content-Type': 'application/json',
+                'X-Auth-token': self._auth_token
+            }
+            response = requests.request("GET", url, headers=headers)
+            self._log_response(response)
 
-        if response.status_code == requests.codes.ok:
-            _role = IDMRole(
-                role_dict=response.json()['role'],
-                application_id=application_id)
-        else:
-            _role = None
+            if response.status_code == requests.codes.ok:
+                _role = IDMRole(
+                    role_dict=response.json()['role'],
+                    application_id=application_id)
+            else:
+                _role = None
 
-        return _role
+            return _role
+
+        elif query_type == IDMQuery.BY_NAME:
+            roles = self.list_roles(application_id)
+            role_list = list()
+
+            for _role in roles:
+                if _role.name == role_id:
+                    role_list.append(_role)
+
+            if len(role_list) > 1:
+                self._logger.warning(
+                    'multiple roles with the name "%s" found',
+                    role_id)
+
+            return role_list
 
     def update_role(self, application_id: str, roled_id: str):
         raise NotImplementedError()
