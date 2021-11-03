@@ -129,7 +129,15 @@ class IDMManager(object):
         self._log_response(response)
         response.raise_for_status()
 
-        return response.json()['access_token']
+        _token = response.json()['access_token']
+
+        if 'expires_in' in response.json():
+            _expires = response.json()['expires_in']
+        elif 'permanent' in response.json()['scope']:
+            _expires = 'permanent'
+
+        return (_token, _expires)
+
 
     ###########################################################################
     # ORGANIZATIONS section
